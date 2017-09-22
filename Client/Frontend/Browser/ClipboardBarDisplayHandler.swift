@@ -16,13 +16,14 @@ protocol ClipboardBarDisplayHandlerDelegate: class {
 class ClipboardBarDisplayHandler {
     weak var delegate: (ClipboardBarDisplayHandlerDelegate & SettingsDelegate)?
     weak var settingsDelegate: SettingsDelegate?
+    weak var tabManager: TabManager?
     private var sessionStarted = true
     private var prefs: Prefs
-    private var lastDisplayedURL: String?
     var clipboardToast: ButtonToast?
     
-    init(prefs: Prefs) {
+    init(prefs: Prefs, tabManager: TabManager) {
         self.prefs = prefs
+        self.tabManager = tabManager
         NotificationCenter.default.addObserver(self, selector: #selector(self.SELAppWillEnterForegroundNotification), name: NSNotification.Name.UIApplicationWillEnterForeground, object: nil)
         
         NotificationCenter.default.addObserver(self, selector: #selector(self.SELAppWillResignActive), name: NSNotification.Name.UIApplicationDidEnterBackground, object: nil)
@@ -55,7 +56,8 @@ class ClipboardBarDisplayHandler {
     //If we already displayed this URL on the previous session
     //We shouldn't display it again
     private func wasClipboardURLAlreadyDisplayed(_ clipboardURL: String) -> Bool {
-        if let lastDisplayedURL = lastDisplayedURL, lastDisplayedURL == clipboardURL {
+        if let url = URL(string: clipboardURL),
+            let _ = tabManager?.getTabFor(url) {
             return true
         }
         return false

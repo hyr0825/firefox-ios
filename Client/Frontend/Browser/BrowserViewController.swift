@@ -391,7 +391,7 @@ class BrowserViewController: UIViewController {
         self.view.addSubview(findInPageContainer)
 
         if AppConstants.MOZ_CLIPBOARD_BAR {
-            clipboardBarDisplayHandler = ClipboardBarDisplayHandler(prefs: profile.prefs)
+            clipboardBarDisplayHandler = ClipboardBarDisplayHandler(prefs: profile.prefs, tabManager: tabManager)
             clipboardBarDisplayHandler?.delegate = self
         }
         
