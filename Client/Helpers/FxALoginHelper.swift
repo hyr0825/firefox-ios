@@ -97,10 +97,6 @@ class FxALoginHelper {
         // accountVerified is needed by delegates.
         accountVerified = account.actionNeeded != .needsVerification
 
-        // We should check if deviceRegistration has been performed, and 
-        // update the sync scratch pad (a proxy for our client record) accordingly.
-        // We do this here because this is effectively the upgrade path between 7 and 8.
-        updateSyncScratchpad()
 
         guard AppConstants.MOZ_FXA_PUSH else {
             return loginDidSucceed()
@@ -182,49 +178,13 @@ class FxALoginHelper {
 
     fileprivate func requestUserNotificationsMainThreadOnly(_ application: UIApplication) {
         assert(Thread.isMainThread, "requestAuthorization should be run on the main thread")
-        if #available(iOS 10, *) {
-            let center = UNUserNotificationCenter.current()
-            return center.requestAuthorization(options: [.alert, .badge, .sound]) { (granted, error) in
-                guard error == nil else {
-                    return self.application(application, canDisplayUserNotifications: false)
-                }
-                self.application(application, canDisplayUserNotifications: granted)
+        let center = UNUserNotificationCenter.current()
+        return center.requestAuthorization(options: [.alert, .badge, .sound]) { (granted, error) in
+            guard error == nil else {
+                return self.application(application, canDisplayUserNotifications: false)
             }
+            self.application(application, canDisplayUserNotifications: granted)
         }
-
-        // This is for iOS 9 and below.
-        // We'll still be using local notifications, i.e. the old behavior,
-        // so we need to keep doing it like this.
-        let viewAction = UIMutableUserNotificationAction()
-        viewAction.identifier = SentTabAction.view.rawValue
-        viewAction.title = Strings.SentTabViewActionTitle
-        viewAction.activationMode = .foreground
-        viewAction.isDestructive = false
-        viewAction.isAuthenticationRequired = false
-
-        let bookmarkAction = UIMutableUserNotificationAction()
-        bookmarkAction.identifier = SentTabAction.bookmark.rawValue
-        bookmarkAction.title = Strings.SentTabBookmarkActionTitle
-        bookmarkAction.activationMode = .foreground
-        bookmarkAction.isDestructive = false
-        bookmarkAction.isAuthenticationRequired = false
-
-        let readingListAction = UIMutableUserNotificationAction()
-        readingListAction.identifier = SentTabAction.readingList.rawValue
-        readingListAction.title = Strings.SentTabAddToReadingListActionTitle
-        readingListAction.activationMode = .foreground
-        readingListAction.isDestructive = false
-        readingListAction.isAuthenticationRequired = false
-
-        let sentTabsCategory = UIMutableUserNotificationCategory()
-        sentTabsCategory.identifier = TabSendCategory
-        sentTabsCategory.setActions([readingListAction, bookmarkAction, viewAction], for: .default)
-
-        sentTabsCategory.setActions([bookmarkAction, viewAction], for: .minimal)
-
-        let settings = UIUserNotificationSettings(types: .alert, categories: [sentTabsCategory])
-
-        application.registerUserNotificationSettings(settings)
     }
 
     // This is necessarily called from the AppDelegate.
@@ -244,11 +204,6 @@ class FxALoginHelper {
 
         // Record that we have asked the user, and they have given an answer.
         profile?.prefs.setBool(true, forKey: applicationDidRequestUserNotificationPermissionPrefKey)
-
-        guard #available(iOS 10, *) else {
-            apnsTokenDeferred?.fillIfUnfilled(Maybe.failure(PushNotificationError.wrongOSVersion))
-            return readyForSyncing()
-        }
 
         if AppConstants.MOZ_FXA_PUSH {
             DispatchQueue.main.async {
@@ -335,10 +290,6 @@ class FxALoginHelper {
         // The only way we can tell if the account has been verified is to 
         // start a sync. If it works, then yay,
         account.advance().upon { state in
-            if attemptsLeft == verificationMaxRetries {
-                self.updateSyncScratchpad()
-            }
-
             guard state.actionNeeded == .needsVerification else {
                 // Verification has occurred remotely, and we can proceed.
                 // The state machine will have told any listening UIs that 
@@ -366,16 +317,6 @@ class FxALoginHelper {
 
     fileprivate func loginDidFail() {
         delegate?.accountLoginDidFail()
-    }
-
-    fileprivate func updateSyncScratchpad() {
-        // We need to associate the fxaDeviceId with sync;
-        // We can do this anything after the first time we account.advance()
-        // but before the first time we sync.
-        if let deviceRegistration = account?.deviceRegistration,
-            let scratchpadPrefs = profile?.prefs.branch("sync.scratchpad") {
-            scratchpadPrefs.setString(deviceRegistration.toJSON().stringValue()!, forKey: PrefDeviceRegistration)
-        }
     }
 
     func performVerifiedSync(_ profile: Profile, account: FirefoxAccount) {

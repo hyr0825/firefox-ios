@@ -39,6 +39,7 @@ class QRCodeViewController: UIViewController, AVCaptureMetadataOutputObjectsDele
         label.text = Strings.ScanQRCodeInstructionsLabel
         label.textColor = UIColor.white
         label.textAlignment = NSTextAlignment.center
+        label.numberOfLines = 0
         return label
     }()
     private var maskView: UIView = UIView()
@@ -73,7 +74,7 @@ class QRCodeViewController: UIViewController, AVCaptureMetadataOutputObjectsDele
         if getAuthorizationStatus != AVAuthorizationStatus.denied {
             setupCamera()
         } else {
-            let alert = UIAlertController(title: "", message: NSLocalizedString("Please allow Firefox to access your device's camera in 'Settings' -> 'Privacy' -> 'Camera'.", comment: "Text of the prompt user to setup the camera authorization."), preferredStyle: .alert)
+            let alert = UIAlertController(title: "", message: NSLocalizedString("Please allow Firefox to access your device’s camera in ‘Settings’ -> ‘Privacy’ -> ‘Camera’.", comment: "Text of the prompt user to setup the camera authorization."), preferredStyle: .alert)
             alert.addAction(UIAlertAction(title: NSLocalizedString("OK", comment: "OK button"), style: .default, handler: nil))
             self.present(alert, animated: true, completion: nil)
         }
@@ -128,9 +129,8 @@ class QRCodeViewController: UIViewController, AVCaptureMetadataOutputObjectsDele
         }
 
         instructionsLabel.snp.makeConstraints { (make) in
-            make.left.right.equalTo(0)
+            make.left.right.equalTo(self.view.layoutMarginsGuide)
             make.top.equalTo(scanBorder.snp.bottom).offset(30)
-            make.height.equalTo(50)
         }
     }
 
